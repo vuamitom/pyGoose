@@ -2,6 +2,8 @@
 Clean ads, social network divs, comments
 """
 import logging
+logging.basicConfig(level=logging.INFO)
+
 class DocumentCleaner(object):
     """docstring for DocumentCleaner"""
     def __init__(self):
@@ -11,21 +13,19 @@ class DocumentCleaner(object):
     def clean(self, article):
         logging.info("Cleaning article")
         doc = article.doc
-        print(type(doc))
         self.cleanem(doc)
         self.rm_scriptstyle(doc)
 
 
-    def cleanem(doc):
-        emlist = doc.getElementsByTagName("em")
-        for i in range(0, emlist.length):
-            node = emlist.item(i)
-            images = node.getElementsByTagName("img")
-            if(images.length == 0):
-                parent = node.parentNode
-                parent.replaceChild(doc.createTextNode(node.nodeValue), node)
+    def cleanem(self, doc):
+        emlist = doc.findall(".//em")
+        for node in emlist:
+            images = node.findall(".//img")
+            if(len(images) == 0):
+                parent = node.getparent()
+                parent.replace(node, node.text )
 
-        logging.info(str(emlist.length) + " EM tags modified")
+        logging.info(str(len(emlist)) + " EM tags modified")
         return doc
     
     def rm_dropcap(self, doc):
@@ -33,7 +33,25 @@ class DocumentCleaner(object):
 
         
     def rm_scriptstyle(self, doc):
-        style = doc.getElementsByTagName("style")
-        for i in range(0, style.length):
-            style_node = style.item(i)
+        style = doc.findall(".//style")
+        for s in style: 
+            parent = s.getparent()
+            parent.remove(s)
+        
+        logging.info(str(len(style)) + " style tags removed")
+
+        scripts = doc.findall(".//script")
+        for s in scripts:
+            parent = s.getparent()
+            parent.remove(s)
+
+        logging.info(str(len(scripts)) + " script tags removed ")
+
+    def rm_para_spantags(self, doc):
+        """When a span tag nests in a paragraph tag"""
+        spans = doc.findall(".//p/span")
+        for span in spans:
+            paranode = span.getparent()
+            paranode.replace(span, span.text)
+            
 
