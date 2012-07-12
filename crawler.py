@@ -67,8 +67,8 @@ class Crawler(object):
             #output formatter
             
             title = article.doc.find(".//title")
-            print(type(title.ownerDocument))
-            title.getparent().replace(title, title..createTextNode(title.text))
+            #print(type(title.ownerDocument))
+            #title.getparent().replace(title, title..createTextNode(title.text))
             return article
         else :
             logging.info("Document at " + crawlcandidate.url + " is empty")
