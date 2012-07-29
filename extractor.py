@@ -1,9 +1,12 @@
 import logging
+import text
+from lxml import etree
 
 class ContentExtractor(object):
     """docstring for ContentExtractor"""
     def __init__(self):
         super(ContentExtractor, self).__init__()
+        self.xtopnodetags = etree.XPath("//*[self::p or self::td or self::pre]") 
         
     def gettitle(self, doc):
         #select title
@@ -91,19 +94,29 @@ class ContentExtractor(object):
 
         return tagSet
 
-    def getbestnodeoncluster(self, doc):
+    def getbestnode_bsdoncluster(self, doc):
         nodes = self.getnodestocheck(doc)
-
+        startboost = 1.0
+        count = 0 
         for node in nodes:
-            nodetext = node.text
-
+            if node.text!= None:
+                wordstats = text.StopWord.countstopwords(node.text)
+               
 
     def getnodestocheck(self, doc):
-        tocheck = []
-        tocheck = tocheck +  doc.cssselect('p')
-        tocheck = tocheck +   doc.cssselect('pre')
-        tocheck = tocheck +  doc.cssselect('td')
+        #tocheck = []
+        #tocheck = tocheck +  doc.cssselect('p')
+        #tocheck = tocheck +   doc.cssselect('pre')
+        #tocheck = tocheck +  doc.cssselect('td')
+        tocheck = self.xtopnodetags(doc)
         return tocheck
+
+    def countstopword(self, nodetext):
+        """count no. of stop words in a node text"""
+
+    def ishighlinkdensity(self, node):
+        """check if a node contains lots of links"""
+
         
 
 class StandardContentExtractor(ContentExtractor):

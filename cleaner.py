@@ -2,6 +2,7 @@
 Clean ads, social network divs, comments
 """
 import logging
+import re
 from lxml import etree
 logging.basicConfig(level=logging.INFO)
 
@@ -17,25 +18,49 @@ class DocumentCleaner(object):
         self.xpara_span = etree.XPath("//p/span")
         self.xdropcap = etree.XPath("//span[contains(@class,'dropcap') or contains(@class,'drop-cap')]")
         #self.xdropcap = etree.XPath("//span[matches(@class,'(dropcap|drop-cap)')]")
+        self.xwantedtags = etree.XPath("//*[self::div or self::span or self::article ]")
+        self.xblkelemtags = etree.XPath("//*[self::a or self::blockquote or self::dl or self::div or self::img or self::ol or self::p or self::pre or self::table or self::ul]")
+        self.tabnspaces = re.compile(r"(\t|^\s+$)")
+        self.linebreaks = re.compile(r"\n")
 
     def clean(self, article):
         logging.info("Cleaning article")
         doc = article.doc
+        #logging.info(etree.tostring(doc,pretty_print=True))
         self.cleanem(doc)
         self.rm_scriptstyle(doc)
         self.rm_dropcaps(doc)
         self.rm_para_spantags(doc)
         self.clean_badtags(doc)
+        self.tagstoparagraph(doc)
+        logging.info(etree.tostring(doc, pretty_print=True).decode('utf-8'))
+
 
     def _replacewithtext(self, node):
         """replace an element with its text """
         parent = node.getparent()
-        parent.remove(node)
+        #parent.remove(node)
+        nodetext = "%s %s" % ( node.text, node.tail )
+        nodetext = nodetext.strip()
+        logging.info("replace " + node.tag + " with text " + nodetext)
+
         try:
             prevsib = next(node.itersiblings(preceding=True))
-            prevsib.tail = node.text
+            prevsib.tail = "%s %s" % (prevsib.tail, nodetext) 
+            prevsib.tail = prevsib.tail.strip()
         except StopIteration:
-            parent.text = node.text
+            parent.text = ("%s %s" % ( parent.text, nodetext )).strip()
+
+        parent.remove(node)
+
+    def _replacewithpara(self, node):
+
+        """replace an element with para <p> """
+        parent = node.getparent()
+        para = parent.makeelement('p')
+        for child in node.iterchildren():
+            para.append(child)
+        parent.replace(node, para)
 
     def cleanem(self, doc):
         emlist = self.xem(doc)
@@ -71,6 +96,8 @@ class DocumentCleaner(object):
             #replace span with text 
             self._replacewithtext(span)
 
+        return doc
+
 
     def rm_dropcaps(self, doc):
         """remove those css drop caps where they put the first letter in big text in the 1st paragraph"""
@@ -78,6 +105,7 @@ class DocumentCleaner(object):
         for item in items:
             #replace 
             self._replacewithtext(item)
+        return doc
 
     def clean_badtags(self, doc):
         """remove sidebar, block comments, reviews ... """
@@ -108,7 +136,65 @@ class DocumentCleaner(object):
         logging.info(str(len(noisypatterns)) + " tag Classes match noisy patterns and removed ")
         for ele in noisypatterns:
             ele.getparent().remove(ele)
+        return doc
 
+    def tagstoparagraph(self, doc):
+        """wrap orphan text in <p> tag. This situation is handled a bit different from Jim Goose
+           It flushes the replacehtml buffer when <p> <article> or <div> is met"""
+        for selectedtag in self.xwantedtags(doc):
+            blkelems = self.xblkelemtags(selectedtag)
+            if(len(blkelems) == 0):
+                #replace element with para
+                self._replacewithpara(doc,selectedtag) 
+            else:
+                #replace with a chosen tag
+                self._getreplacement(doc,selectedtag)
+        return doc
+
+    def _getreplacement(self, doc, ele):
+        replacehtml = None 
+        if ele.text != None and ele.text.strip()!="":
+            replacehtml = self._formattext(ele.text) 
+            #remember to remove this text 
+            ele.text = None
+
+        for node in ele.iterchildren():
+            if node.tag == 'a':
+                replacehtml = ("%s %s" % (replacehtml,self._outerhtml(node))).strip()
+                #remove node from document
+                ele.remove(node)
+            
+            if node.tag == 'p' or node.tag == 'article' or node.tag == 'div':
+                #wrap a <p> around the replacement buffer and insert
+                if replacehtml != None:
+                    newpara = self._createpara(ele, replacehtml)
+                    node.addprevious(newpara)
+                    replacehtml = None
+
+            if node.tail != None and node.tail.strip()!="": 
+                text = self._formattext(node.tail)
+                replacehtml = ("%s %s" % (replacehtml , text)).strip()
+                #remember to remove tail if necessary
+                node.tail = None
+
+        #flush all the text left
+        if replacehtml != None:
+            newpara = self._createpara(ele, replacehtml)
+            ele.append(newpara)
+
+
+    def _formattext(self, text):
+        result = re.sub(self.tabnspaces,"",text)
+        result = re.sub(self.linebreaks,r'\n\n',result)
+        return result
+
+    def _createpara(self, parentele, innerhtml):
+        para = etree.fromstring('<p>' + innerhtml + '</p>')
+        para.base = parentele.base
+        return para
+
+    def _outerhtml(self, ele):
+        return etree.tostring(ele).decode('utf-8')
 
     def regexselect(self, ele, attr, pattern):
         """clean tags that has attr matches a pattern"""
@@ -127,6 +213,7 @@ class DocumentCleaner(object):
         path = "//*[" + path + "]" 
         filters = etree.XPath(path)
         return filters(ele)
+
 
 
 from util import Singleton
