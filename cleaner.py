@@ -4,6 +4,7 @@ Clean ads, social network divs, comments
 import logging
 import re
 from lxml import etree
+from text import TextHandler
 logging.basicConfig(level=logging.INFO)
 
 class DocumentCleaner(object):
@@ -20,8 +21,10 @@ class DocumentCleaner(object):
         #self.xdropcap = etree.XPath("//span[matches(@class,'(dropcap|drop-cap)')]")
         self.xwantedtags = etree.XPath("//*[self::div or self::span or self::article ]")
         self.xblkelemtags = etree.XPath("//*[self::a or self::blockquote or self::dl or self::div or self::img or self::ol or self::p or self::pre or self::table or self::ul]")
-        self.tabnspaces = re.compile(r"(\t|^\s+$)")
-        self.linebreaks = re.compile(r"\n")
+        #self.tabnspaces = re.compile(r"(\t|^\s+$)")
+        #self.linebreaks = re.compile(r"\n")
+        self.texthandler = TextHandler()
+
 
     def clean(self, article):
         logging.info("Cleaning article")
@@ -184,9 +187,11 @@ class DocumentCleaner(object):
 
 
     def _formattext(self, text):
-        result = re.sub(self.tabnspaces,"",text)
-        result = re.sub(self.linebreaks,r'\n\n',result)
-        return result
+        #result = re.sub(self.tabnspaces,"",text)
+        #result = re.sub(self.linebreaks,r'\n\n',result)
+        res = self.texthandler.removetabnspace(text)
+        res = self.texthandler.widenlinebreak(res)
+        return res
 
     def _createpara(self, parentele, innerhtml):
         para = etree.fromstring('<p>' + innerhtml + '</p>')

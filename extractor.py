@@ -1,12 +1,14 @@
 import logging
-import text
 from lxml import etree
+from text import TextHandler
 
 class ContentExtractor(object):
     """docstring for ContentExtractor"""
     def __init__(self):
         super(ContentExtractor, self).__init__()
         self.xtopnodetags = etree.XPath("//*[self::p or self::td or self::pre]") 
+        self.xlinks = etree.XPath("//a")
+        self.texthandler = TextHandler()
         
     def gettitle(self, doc):
         #select title
@@ -44,7 +46,7 @@ class ContentExtractor(object):
         title = title.replace('&raquo;','').replace('»','').replace('&#65533;','')
         return title
 
-    def getmetatcontent(self, doc, metaname):
+    def getmetacontent(self, doc, metaname):
         metaElems = doc.cssselect(metaname)
         if metaElems and len(metaElems)>0:
             content = metaElems[0].get('content')
@@ -55,10 +57,10 @@ class ContentExtractor(object):
 
 
     def getmetadesc(self, doc):
-        return self.getmetatcontent(doc,'meta[name=description]')
+        return self.getmetacontent(doc,'meta[name=description]')
 
     def getmetakeywords(self,doc):
-        return self.getmetatcontent(doc, 'meta[name=keywords]')
+        return self.getmetacontent(doc, 'meta[name=keywords]')
 
     def getcanonicallink(self,doc):
         links = doc.cssselect('link[ref=canonical]')
@@ -75,33 +77,41 @@ class ContentExtractor(object):
 
     def extracttags(self, doc):
         #A_REL_TAG_SELECTOR: String = "a[rel=tag], a[href*=/tag/]"
-        # using cssselect('a[href*=tag]') -> [a element href=/tag/]
-        # cssselect('a[href=tag]') can't find <a href="/tag/">
-        # cssselect('a[href=/tag/]') -> invalid character error
         if len(doc.getchildren()) == 0 :
             #return empty set
             return set()
         tagSet = set()
-        tags = doc.cssselect('a[ref=tag]')
+        tags = doc.cssselect('a[rel=tag],a[href*=tag]')
         if tags and len(tags) > 0:
             for t in tags:
                 tagSet.add(t.text)
 
-        tags = doc.cssselect('a[href*=tag]')
-        if tags and len(tags)>0:
-            for t in tags:
-                tagSet.add(t.text)
+        #tags = doc.cssselect('a[href*=tag]')
+        #if tags and len(tags)>0:
+        #    for t in tags:
+        #        tagSet.add(t.text)
 
         return tagSet
 
     def getbestnode_bsdoncluster(self, doc):
+        nodeswithtext = []
         nodes = self.getnodestocheck(doc)
         startboost = 1.0
         count = 0 
         for node in nodes:
             if node.text!= None:
-                wordstats = text.StopWord.countstopwords(node.text)
-               
+                wordstats = self.texthandler.getstopwordscount(node.text)
+                linkdense = self.ishighlinkdensity(node)
+                if(wordstats.stopwordcount > 2 and not linkdense ):
+                    nodeswithtext.append(node)
+
+        logging.info("To inspect %d nodes with text " % len(nodeswithtext))
+
+        for node in nodeswithtext:
+            boostscore = 0 
+            if self.isboostable : 
+                if count >= 0:
+                    boostscore = 0; # to be continued
 
     def getnodestocheck(self, doc):
         #tocheck = []
@@ -111,11 +121,33 @@ class ContentExtractor(object):
         tocheck = self.xtopnodetags(doc)
         return tocheck
 
-    def countstopword(self, nodetext):
-        """count no. of stop words in a node text"""
-
     def ishighlinkdensity(self, node):
         """check if a node contains lots of links"""
+        links = self.xlinks(node)
+        if len(links) == 0: 
+            return False
+        text = node.text.strip()
+        words = self.texthandler.splittext(text)
+        linkbuffer = [] 
+        for link in links:
+            if link.text != None:
+                linkbuffer.append(link.text)
+
+        linktext = ' '.join(linkbuffer) 
+        linkwords = self.texthandler.splittext(linktext)
+
+        linkdivisor = len(linkwords)/len(words)
+        score = linkdivisor * len(links)
+        
+        logging.info("Link density score is %d for node %s"%(score, self._getshortext(node)))
+        return score > 1
+
+    def _getshorttext(self,node):
+        return etree.tostring(node).decode('utf-8')[:50]
+
+    def isboostable (self, node ):
+        #to be continue
+        return False
 
         
 
@@ -136,33 +168,3 @@ class PublishDateExtractor(object):
     def extract(self, doc):
         return None
 
-
-class StopWords(object):
-    """docstring for StopWords"""
-    def __init__(self):
-        super(StopWords, self).__init__()
-        self.punctuation = re.compile(r'[^\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Pc}\s]')
-        self.spacesplit = re.compile(r'\s+')
-        #get stop words from file 
-        self.stopwords = []
-        infile = open("stopwords-en.txt")
-        for l in infile:
-            self.stopwords.append(l)
-
-
-        
-    def removepunctuation(self,text):
-        return self.punctuation.sub('',text)
-        
-    def getstopwordscount(self, content):
-        if not content:
-            return None
-        strippedinput = self.removepunctuation(content) 
-        candidate = self.spacesplit.split(strippedinput)
-
-        isstopwords = []
-        for c in candidate:
-            if c in self.stopwords:
-                isstopwords.append(c)
-
-        #return wordstat
