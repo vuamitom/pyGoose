@@ -146,7 +146,22 @@ class ContentExtractor(object):
         return etree.tostring(node).decode('utf-8')[:50]
 
     def isboostable (self, node ):
-        #to be continue
+        stepsaway = 0 
+        minstopword = 5
+        maxstepsaway = 3
+        for sib in node.itersiblings(preceding=True):
+            if(sib.tag == 'p'): 
+                if stepsaway >= maxstepsaway:
+                    logging.info("Next paragraph is too farway, not boost")
+                    return False
+                paratext = sib.text
+                if paratext != None:
+                    ws = self.texthandler.getstopwordscount(paratext)
+                    if ws.stopwordscount > minstopword:
+                        logging.info("Boosting this node")
+                        return True
+                stepsaway += 1
+
         return False
 
         
