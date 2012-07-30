@@ -1,5 +1,5 @@
 import re
-#from util import Configuration 
+from structure import  Singleton
 class TextHandler(object):
     """docstring for StopWords"""
     def __init__(self):
@@ -7,7 +7,7 @@ class TextHandler(object):
         self.punctuation = re.compile(r'[^\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Pc}\s]')
         self.spacesplit = re.compile(r'\s+')
         #get stop words from file 
-        self.swlist = StopWordSource()
+        self.swlist = StopWordSource.instance()
         self.tabnspaces = re.compile(r"(\t|^\s+$)")
         self.linebreaks = re.compile(r"\n")
         
@@ -47,7 +47,7 @@ class WordStat(object):
         self.stopwordcount = 0
         self.stopwords = None
 
-#@util.Singleton
+@Singleton
 class StopWordSource(object):
     """contain all stop words"""
     def __init__(self):

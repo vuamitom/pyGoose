@@ -10,11 +10,11 @@ class Article(object):
         super(Article, self).__init__()
     
         
-class Configuration(object):
-    """docstring for Configuration"""
-    def __init__(self, arg):
-        super(Configuration, self).__init__()
-        self.arg = arg
+#class Configuration(object):
+#    """docstring for Configuration"""
+#    def __init__(self, arg):
+#        super(Configuration, self).__init__()
+#        self.arg = arg
         
 class CrawlCandidate(object):
     """docstring for CrawlCandidate"""
@@ -51,7 +51,7 @@ class Crawler(object):
             #to check if this is necessary , to do a shallow or a deepcopy
             article.rawDoc = copy.deepcopy(doc)
             article.title = extractor.gettitle(article.doc)
-            article.publishdate = self.config.pubdateextractor.extract(article.doc)
+            article.publishdate = self.get_publishdatextr().extract(article.doc)
             #article.additiondata = config.additiondataextractor.extract(article.doc)
             article.metadesc = extractor.getmetadesc(article.doc)
             article.metakeywords = extractor.getmetakeywords(article.doc)
@@ -130,11 +130,14 @@ class Crawler(object):
             raise e
 
     def get_extractor(self):
-        if not self.config.contentextractor:
-            from extractor import StandardContentExtractor
-            self.config.contentextractor = StandardContentExtractor()
+        if not hasattr(self,'contentextractor'):
+            self.contentextractor = self.config.contentextractor()
+        return self.contentextractor
 
-        return self.config.contentextractor
+    def get_publishdatextr(self):
+        if not hasattr(self, 'publishdatextr'):
+            self.publishdatextr = self.config.pubdateextractor()
+        return self.publishdatextr
 
     def get_doccleaner(self):
         return  DocumentCleaner()

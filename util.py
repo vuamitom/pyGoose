@@ -13,7 +13,12 @@ class Configuration(object):
                     'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:2.0.1) Gecko/20100101 Firefox/4.0.1', 
                     'accept-charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7'
         }
-        self.pubdateextractor = extractor.PublishDateExtractor()
+        #instead of storing instances of extractors in config object
+        # as Jim Goose does, we only keep classnames here 
+        # as we believe config object should only serve as a reference 
+        # for other operations rather than the tool itself
+        self.pubdateextractor = extractor.PublishDateExtractor
+        self.contentextractor = extractor.ContentExtractor
 
 from urllib.request import urlopen, Request
 from exception import NotFoundException
@@ -78,24 +83,5 @@ class URLHelper(object):
         except Exception as e:
             logging.critical("Error in parsing url " + str(url))
             raise e
-            
 
-class Singleton(object):
-    """Decorator class to make singleton structure"""
-    def __init__(self, decorated):
-        self._target = decorated
-
-    def instance(self):
-        if hasattr(self, '_instance'):
-            return self._instance
-        else:
-            self._instance = self._target()
-            return self._instance
-        
-
-    def __call__(self):
-        raise TypeError('Singletons must be created using Instance() ')
-
-    def __instancecheck__(self,inst):
-        return isinstance(inst, self._target)
 

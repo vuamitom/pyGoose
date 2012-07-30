@@ -221,7 +221,7 @@ class DocumentCleaner(object):
 
 
 
-from util import Singleton
+from structure import Singleton
 
 @Singleton
 class NoisyKeyProvider:
