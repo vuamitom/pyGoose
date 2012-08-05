@@ -2,6 +2,8 @@
 from crawler import Crawler, CrawlCandidate
 from extractor import StandardContentExtractor
 from util import HTMLFetcher, Configuration
+import logging
+logging.basicConfig(level=logging.DEBUG)
 def main():
     url = 'http://localhost/projects/pyGoose/target.html'
     #url = 'http://www.google.co.in'

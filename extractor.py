@@ -1,6 +1,7 @@
 import logging
 from lxml import etree
 from text import TextHandler
+import util
 
 class ContentExtractor(object):
     """docstring for ContentExtractor"""
@@ -93,25 +94,95 @@ class ContentExtractor(object):
 
         return tagSet
 
-    def getbestnode_bsdoncluster(self, doc):
+    def getbestnodes_bsdoncluster(self, doc):
         nodeswithtext = []
+        parentnodes = []
         nodes = self.getnodestocheck(doc)
         startboost = 1.0
         count = 0 
+        i = 0 #iteration 
         for node in nodes:
-            if node.text!= None:
-                wordstats = self.texthandler.getstopwordscount(node.text)
+            nodetext = util.getinnertext(node)
+            if nodetext!= None:
+                wordstats = self.texthandler.getstopwordscount(nodetext)
                 linkdense = self.ishighlinkdensity(node)
                 if(wordstats.stopwordcount > 2 and not linkdense ):
                     nodeswithtext.append(node)
 
         logging.info("To inspect %d nodes with text " % len(nodeswithtext))
-
+        negativescore = 0
+        bottomnode_for_negativescore = len(nodeswithtext) * 0.25
         for node in nodeswithtext:
             boostscore = 0 
-            if self.isboostable : 
+            if self.isboostable(node) : 
                 if count >= 0:
-                    boostscore = 0; # to be continued
+                    boostscore = ( 1.0/ startboost * 50)
+                    startboost += 1
+            if len(nodeswithtext) > 15:
+                # for nodes that fall in bottom 25%
+                if (len(nodeswithtext) - i) <= bottomnode_for_negativescore:
+                    booster = bottomnode_for_negativescore - (len(nodeswithtext) - i )
+                    boostscore = -math.pow(booster, 2)
+                    negscore = math.abs(boostscore) + negativescore
+                    if negscore > 40:
+                        boostscore  = 5
+
+            logging.info("Location boost score %d on iteration %d id='%s' class='%s' tag='%s'" % (boostscore, i, node.getparent().get('id'), node.getparent().get('class'), node.getparent().tag ))
+            
+            nodetext = util.getinnertext(node) 
+            ws = self.texthandler.getstopwordscount(nodetext)
+            upscore = ws.stopwordcount + boostscore
+            parent = node.getparent()
+            grandpar = node.getparent().getparent()
+            self._score(parent, upscore)
+            self._score(grandpar, upscore/2)
+            self._nodecount(parent, 1)
+            self._nodecount(grandpar,1)
+                
+            try:
+                parentnodes.index(parent)
+            except ValueError:
+                parentnodes.append(parent)
+
+            try:
+                parentnodes.index(grandpar)
+            except ValueError:
+                parentnodes.append(grandpar)
+
+            count += 1
+            i += 1
+
+        topnodescore = 0
+        topnode = None
+        for node in parentnodes:
+            logging.info("Parent Node: score=%s nodeCount=%s id=%s class=%s tag=%s" % (self._score(node),self._nodecount(node),node.get('id'),node.get('class'), node.tag))
+            score = self._score(node)
+            if score > topnodescore:
+                topnode = node
+                topnodescore = score
+
+            if topnode is None: 
+                topnode = node
+        
+        return topnode
+
+
+    def _score(self, node, addscore=None):
+        score = node.get('score')
+        score = float(score) if score is not None else 0
+        if addscore is not None:
+            score += addscore
+            node.set('score', str(score))
+        return score 
+
+    def _nodecount(self, node, addcount=None):
+        count = node.get('nodecount')
+        count = int(count) if count is not None else 0
+        if addcount is not None:
+            count += addcount
+            node.set('nodecount', str(count))
+        return count 
+
 
     def getnodestocheck(self, doc):
         #tocheck = []
@@ -139,13 +210,14 @@ class ContentExtractor(object):
         linkdivisor = len(linkwords)/len(words)
         score = linkdivisor * len(links)
         
-        logging.info("Link density score is %d for node %s"%(score, self._getshortext(node)))
+        logging.info("Link density score is %f for node %s"%(score, self._getshorttext(node)))
         return score > 1
 
     def _getshorttext(self,node):
         return etree.tostring(node).decode('utf-8')[:50]
 
     def isboostable (self, node ):
+        """ make sure that the node is a paragraph, and connected to other paragraph """
         stepsaway = 0 
         minstopword = 5
         maxstepsaway = 3
@@ -154,10 +226,10 @@ class ContentExtractor(object):
                 if stepsaway >= maxstepsaway:
                     logging.info("Next paragraph is too farway, not boost")
                     return False
-                paratext = sib.text
+                paratext = util.getinnertext(sib) 
                 if paratext != None:
                     ws = self.texthandler.getstopwordscount(paratext)
-                    if ws.stopwordscount > minstopword:
+                    if ws.stopwordcount > minstopword:
                         logging.info("Boosting this node")
                         return True
                 stepsaway += 1

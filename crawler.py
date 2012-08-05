@@ -64,11 +64,10 @@ class Crawler(object):
             #clean up the document
             cleaner = self.get_doccleaner()
             cleaner.clean(article)
-            #output formatter
-            
-            title = article.doc.find(".//title")
+           
+            #get highest weighted nodes
+            nodes = extractor.getbestnodes_bsdoncluster(article.doc)
             #print(type(title.ownerDocument))
-            #title.getparent().replace(title, title..createTextNode(title.text))
             return article
         else :
             logging.info("Document at " + crawlcandidate.url + " is empty")

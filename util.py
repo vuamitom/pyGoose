@@ -1,6 +1,31 @@
 import logging
 import re
 import extractor
+from lxml import etree
+
+def inspectgroup(elegroup):
+    """ utility to print out a group of element nodes"""
+    for node in elegroup:
+        logging.debug("Element %s " % node.tag)
+
+def getouterhtml(node):
+    """return outerhtml of a node as string"""
+    tail = node.tail
+    node.tail = None
+    outerhtml = etree.tostring(node).decode('utf-8')
+    node.tail = tail
+    return outerhtml
+
+def getinnertext(node):
+    """ aggregate all inner text in a node """
+    text = node.text if node.text is not None else ""
+    for child in node.iterchildren():
+        text += getouterhtml(child) 
+        if child.tail:
+            text += child.tail
+
+    return text
+
 
 class Configuration(object):
     """docstring for Configuration"""

@@ -5,7 +5,8 @@ import logging
 import re
 from lxml import etree
 from text import TextHandler
-logging.basicConfig(level=logging.INFO)
+import util
+#logging.basicConfig(level=logging.INFO)
 
 class DocumentCleaner(object):
     """docstring for DocumentCleaner"""
@@ -20,9 +21,7 @@ class DocumentCleaner(object):
         self.xdropcap = etree.XPath("//span[contains(@class,'dropcap') or contains(@class,'drop-cap')]")
         #self.xdropcap = etree.XPath("//span[matches(@class,'(dropcap|drop-cap)')]")
         self.xwantedtags = etree.XPath("//*[self::div or self::span or self::article ]")
-        self.xblkelemtags = etree.XPath("//*[self::a or self::blockquote or self::dl or self::div or self::img or self::ol or self::p or self::pre or self::table or self::ul]")
-        #self.tabnspaces = re.compile(r"(\t|^\s+$)")
-        #self.linebreaks = re.compile(r"\n")
+        self.xblkelemtags = etree.XPath("./*[self::a or self::blockquote or self::dl or self::div or self::img or self::ol or self::p or self::pre or self::table or self::ul]")
         self.texthandler = TextHandler()
 
 
@@ -57,12 +56,16 @@ class DocumentCleaner(object):
         parent.remove(node)
 
     def _replacewithpara(self, node):
-
         """replace an element with para <p> """
         parent = node.getparent()
         para = parent.makeelement('p')
         for child in node.iterchildren():
             para.append(child)
+        if node.get('id'): 
+            para.set('id', node.get('id'))
+      
+        para.text = node.text
+        para.tail = node.tail
         parent.replace(node, para)
 
     def cleanem(self, doc):
@@ -142,13 +145,15 @@ class DocumentCleaner(object):
         return doc
 
     def tagstoparagraph(self, doc):
-        """wrap orphan text in <p> tag. This situation is handled a bit different from Jim Goose
+        """wrap orphan text in <p> tag. This situation is handled a bit different from Jim Goose. Instead of removing all child elements and add all again, it only insert paragraph around text. 
            It flushes the replacehtml buffer when <p> <article> or <div> is met"""
         for selectedtag in self.xwantedtags(doc):
             blkelems = self.xblkelemtags(selectedtag)
+            logging.debug("processing tag=%s id=%s with %d block eles"%(selectedtag.tag, selectedtag.get('id'), len(blkelems)))
+            blkelems = self.xblkelemtags(selectedtag)
             if(len(blkelems) == 0):
                 #replace element with para
-                self._replacewithpara(doc,selectedtag) 
+                self._replacewithpara(selectedtag) 
             else:
                 #replace with a chosen tag
                 self._getreplacement(doc,selectedtag)
@@ -163,7 +168,8 @@ class DocumentCleaner(object):
 
         for node in ele.iterchildren():
             if node.tag == 'a':
-                replacehtml = ("%s %s" % (replacehtml,self._outerhtml(node))).strip()
+                replacehtml = "%s %s" % (replacehtml,util.getouterhtml(node)) if replacehtml is not None else util.getouterhtml(node)
+                logging.debug(util.getouterhtml(node))
                 #remove node from document
                 ele.remove(node)
             
@@ -176,7 +182,7 @@ class DocumentCleaner(object):
 
             if node.tail != None and node.tail.strip()!="": 
                 text = self._formattext(node.tail)
-                replacehtml = ("%s %s" % (replacehtml , text)).strip()
+                replacehtml = "%s %s" % (replacehtml , text) if replacehtml is not None else text
                 #remember to remove tail if necessary
                 node.tail = None
 
@@ -198,8 +204,8 @@ class DocumentCleaner(object):
         para.base = parentele.base
         return para
 
-    def _outerhtml(self, ele):
-        return etree.tostring(ele).decode('utf-8')
+    #def _outerhtml(self, ele):
+    #    return etree.tostring(ele).decode('utf-8')
 
     def regexselect(self, ele, attr, pattern):
         """clean tags that has attr matches a pattern"""
