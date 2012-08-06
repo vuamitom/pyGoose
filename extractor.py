@@ -10,6 +10,7 @@ class ContentExtractor(object):
         self.xtopnodetags = etree.XPath("//*[self::p or self::td or self::pre]") 
         self.xlinks = etree.XPath("//a")
         self.texthandler = TextHandler()
+        self.xparas = etree.XPath("./p")
         
     def gettitle(self, doc):
         #select title
@@ -126,12 +127,14 @@ class ContentExtractor(object):
                     negscore = math.abs(boostscore) + negativescore
                     if negscore > 40:
                         boostscore  = 5
-
+            logging.debug("==========\n")
             logging.info("Location boost score %d on iteration %d id='%s' class='%s' tag='%s'" % (boostscore, i, node.getparent().get('id'), node.getparent().get('class'), node.getparent().tag ))
             
             nodetext = util.getinnertext(node) 
+            logging.debug(nodetext)
             ws = self.texthandler.getstopwordscount(nodetext)
             upscore = ws.stopwordcount + boostscore
+            logging.debug("total upscore = %f " % upscore ) 
             parent = node.getparent()
             grandpar = node.getparent().getparent()
             self._score(parent, upscore)
@@ -235,6 +238,29 @@ class ContentExtractor(object):
                 stepsaway += 1
 
         return False
+
+    def postextractionclean(self, topnode):
+        """remove any divs that looks like non-content, link clusters"""
+
+    def getbaselinescoreforsiblings(self, topnode):
+        """get base score against average scoring of paragraphs within topnodes. Siblings must have higher score than baseline"""
+        base = 100000
+        numparas = 0
+        scoreparas = 0 
+        nodestocheck = self.xparas(topnode)
+        for node in nodestocheck:
+            nodetext = util.getinnertext(node)
+            ws = self.texthandler.getstopwordscount(nodetext)
+            linkdense = self.ishighlinkdensity(topnode)
+            if(ws.stopwordcount > 2 and !linkdense):
+                numparas += 1
+                scoreparas += ws.stopwordcount
+
+        if numparas > 0:
+            base = scoreparas/ numparas
+        return base
+
+    def addsiblings(self, topnode):
 
         
 

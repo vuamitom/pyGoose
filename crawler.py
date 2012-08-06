@@ -66,8 +66,12 @@ class Crawler(object):
             cleaner.clean(article)
            
             #get highest weighted nodes
-            nodes = extractor.getbestnodes_bsdoncluster(article.doc)
+            topnode = extractor.getbestnodes_bsdoncluster(article.doc)
             #print(type(title.ownerDocument))
+            if topnode:
+                article.topnode = topnode
+                #extract video and images
+                article.topnode = extractor.postextractionclean(topnode)
             return article
         else :
             logging.info("Document at " + crawlcandidate.url + " is empty")

@@ -10,14 +10,14 @@ class TextHandler(object):
         self.spacesplit = regex.compile(r'\s+')
         #get stop words from file 
         self.swlist = StopWordSource.instance()
-        self.tabnspaces = regex.compile(r"(\t|^\s+$)")
+        self.tabnspaces = regex.compile(r"(\t|^\s+|\s+$|\s{2,})")
         self.linebreaks = regex.compile(r"\n")
         
     def removepunctuation(self,text):
         return self.punctuation.sub('',text)
 
     def removetabnspace(self,text):
-        return self.tabnspaces.sub('',text)
+        return self.tabnspaces.sub(' ',text)
 
     def widenlinebreak(self,text):
         return self.linebreaks.sub('',text)
