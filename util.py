@@ -16,16 +16,33 @@ def getouterhtml(node):
     node.tail = tail
     return outerhtml
 
-def getinnertext(node):
-    """ aggregate all inner text in a node """
-    text = node.text if node.text is not None else ""
+def getinnerhtml(node, ):
+    """ inner html of a node """ 
+    text = node.text 
     for child in node.iterchildren():
-        text += getouterhtml(child) 
+        text = text + getouterhtml(child) if text else getouterhtml(child) 
         if child.tail:
-            text += child.tail
-
+            text = text+child.tail if text else child.tail
     return text
 
+def getinnertext(node, includeChildren = False):
+    """ get inner text """
+    # when includeChildren is set to True, text of child node is included
+    # set includeChildren to True when the result text is used to check if the node is trivial(removeable) or not
+    # set it to False when text is used to score node to avoid double weighing for a text in case of <p> inside <p>
+    text = node.text 
+    for child in node.iterchildren():
+        if includeChildren:
+            if child.text:
+                text = child.text if not text else text + child.text
+        else:
+            # only add for non-blk tag like <a>, <b>, <i>...
+            config = Configuration()
+            if child.tag in config.nonblktags and child.text:
+                text = child.text if not text else text + child.text
+        if child.tail:
+            text = child.tail if not text else text + child.tail
+    return text
 
 class Configuration(object):
     """docstring for Configuration"""
@@ -44,6 +61,9 @@ class Configuration(object):
         # for other operations rather than the tool itself
         self.pubdateextractor = extractor.PublishDateExtractor
         self.contentextractor = extractor.ContentExtractor
+        # set of tags that can be inside a paragarah, to decorate text, link ...
+        # these tags should be considered part of a bigger paragraph
+        self.nonblktags = ["a","b","i"]
 
 from urllib.request import urlopen, Request
 from exception import NotFoundException

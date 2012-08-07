@@ -1,5 +1,5 @@
 import logging
-from lxml import etree
+from lxml import etree, html
 from text import TextHandler
 import util
 
@@ -8,9 +8,9 @@ class ContentExtractor(object):
     def __init__(self):
         super(ContentExtractor, self).__init__()
         self.xtopnodetags = etree.XPath("//*[self::p or self::td or self::pre]") 
-        self.xlinks = etree.XPath("//a")
+        #self.xlinks = etree.XPath("./a|./*/a")
         self.texthandler = TextHandler()
-        self.xparas = etree.XPath("./p")
+        #self.xparas = etree.XPath("./p|./*/p")
         
     def gettitle(self, doc):
         #select title
@@ -197,21 +197,22 @@ class ContentExtractor(object):
 
     def ishighlinkdensity(self, node):
         """check if a node contains lots of links"""
-        links = self.xlinks(node)
-        if len(links) == 0: 
+        text = util.getinnertext(node, True) 
+        if not text:
             return False
-        text = node.text.strip()
         words = self.texthandler.splittext(text)
         linkbuffer = [] 
-        for link in links:
+        for link in node.iterdescendants('a'):
             if link.text != None:
                 linkbuffer.append(link.text)
+        if len(linkbuffer) == 0:
+            return False
 
         linktext = ' '.join(linkbuffer) 
         linkwords = self.texthandler.splittext(linktext)
 
         linkdivisor = len(linkwords)/len(words)
-        score = linkdivisor * len(links)
+        score = linkdivisor * len(linkbuffer)
         
         logging.info("Link density score is %f for node %s"%(score, self._getshorttext(node)))
         return score > 1
@@ -241,18 +242,24 @@ class ContentExtractor(object):
 
     def postextractionclean(self, topnode):
         """remove any divs that looks like non-content, link clusters"""
+        node = self.addsiblings(topnode)
+        for child in node.iterchildren():
+            if child.tag == 'p':
+                if self.ishighlinkdensity(child) or self.istablenopara(child) or isthresholdmet(child):
+                    node.remove(child)
+        return node
 
     def getbaselinescoreforsiblings(self, topnode):
         """get base score against average scoring of paragraphs within topnodes. Siblings must have higher score than baseline"""
         base = 100000
         numparas = 0
         scoreparas = 0 
-        nodestocheck = self.xparas(topnode)
-        for node in nodestocheck:
+        #nodestocheck = self.xparas(topnode)
+        for node in topnode.iterdescendants('p'):
             nodetext = util.getinnertext(node)
             ws = self.texthandler.getstopwordscount(nodetext)
             linkdense = self.ishighlinkdensity(topnode)
-            if(ws.stopwordcount > 2 and !linkdense):
+            if(ws.stopwordcount > 2 and not linkdense):
                 numparas += 1
                 scoreparas += ws.stopwordcount
 
@@ -261,6 +268,80 @@ class ContentExtractor(object):
         return base
 
     def addsiblings(self, topnode):
+        """ add content of siblings that are likely to be meaning ful to the topnode"""
+        logging.debug("Start adding siblings")
+        baselinescore = self.getbaselinescoreforsiblings(topnode)
+        siblingcontent = []
+
+        for sib in topnode.itersiblings(preceding=True):
+            content = self.getsiblingcontent(sib, baselinescore)
+            if content: 
+                siblingcontent.append(content)
+
+        for content in siblingcontent:
+            paras = html.fragments_fromstring(content)
+            for p in reversed(paras):
+                self._insertFirst(topnode, p)
+
+        return topnode
+
+    def _insertFirst(self, parnode, node):
+        childnodes = parnode.getchildren()
+        if childnodes and len(childnodes) > 0:
+            first = childnodes[0]
+            first.addprevious(node)
+        else:
+            parnode.append(node)
+
+        # preserve the relative order of text blks
+        if parnode.text:
+            node.tail = parnode.text
+            parnode.text = None
+
+    def getsiblingcontent(self, currentsibling, basescore):
+        if currentsibling.tag == 'p' and len(util.getinnertext(currentsibling)) > 0:
+            return util.getouterhtml(currentsibling)
+        else:
+            alltext = [] 
+            for para in currentsibling.iterdescendants('p'):#self.xparas(currentsibling):
+                text = util.getinnertext(para)
+                if text and len(text) > 0 :
+                    ws = self.texthandler.getstopwordscount(text)
+                    parascore = ws.stopwordcount
+                    if basescore * 0.30 < parascore:
+                        alltext.append("<p>" + text + "</p>")
+
+            if len(alltext) > 0:
+                return " ".join(alltext)
+            else:
+                return None
+
+    def istablenopara(self, node):
+        for subpara in node.iterdescendants('p'):
+            if len(util.getinnertext(subpara,True)) < 25:
+                parent = subpara.getparent()
+                if parent:
+                    parent.remove(subpara)
+
+        #subparas = self.xparas(node)
+        iterpar = node.iterdescendants('p')
+        try:
+            p = next(iterpar)
+            return False
+        except StopIteration:
+            if node.tag != 'td':
+                return True
+        
+    def isthresholdmet(self, node):
+        topnode = node.getparent()
+        topnodescore = self._score(topnode)
+        curscore = self._score(node)
+        threshold = topnodescore * 0.08
+
+        if curscore < threshold and node.tag != 'td':
+            return False
+        else:
+            return True
 
         
 

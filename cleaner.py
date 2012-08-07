@@ -10,9 +10,10 @@ import util
 
 class DocumentCleaner(object):
     """docstring for DocumentCleaner"""
-    def __init__(self):
+    def __init__(self, config):
         super(DocumentCleaner, self).__init__()
         #precompile xPath 
+        self.config = config
         self.xem = etree.XPath("//em")
         self.xstyle = etree.XPath("//style")
         self.ximg = etree.XPath("//img")
@@ -167,7 +168,7 @@ class DocumentCleaner(object):
             ele.text = None
 
         for node in ele.iterchildren():
-            if node.tag == 'a':
+            if node.tag in self.config.nonblktags:#== 'a' or node.tag == 'b' or node.tag == 'i':
                 replacehtml = "%s %s" % (replacehtml,util.getouterhtml(node)) if replacehtml is not None else util.getouterhtml(node)
                 logging.debug(util.getouterhtml(node))
                 #remove node from document

@@ -143,7 +143,7 @@ class Crawler(object):
         return self.publishdatextr
 
     def get_doccleaner(self):
-        return  DocumentCleaner()
+        return  DocumentCleaner(self.config)
 
 
 
