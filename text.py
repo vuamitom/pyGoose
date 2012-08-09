@@ -74,13 +74,13 @@ class Formatter(object):
 
     def getformattedtext(self, topnode):
         """remove all unnecessary elements"""
-        logging.debug("\nINITIAL \n" + util.getinnerhtml(topnode))
+        #logging.debug("\nINITIAL \n" + util.getinnerhtml(topnode))
         self.remove_negscorenodes(topnode)
-        logging.debug("After remove neg score nodes \n" + util.getinnerhtml(topnode))
+        #logging.debug("After remove neg score nodes \n" + util.getinnerhtml(topnode))
         self.linkstotext(topnode)
-        logging.debug("\nAfter linkstotext \n" + util.getinnerhtml(topnode))
+        #logging.debug("\nAfter linkstotext \n" + util.getinnerhtml(topnode))
         self.tagstotext(topnode)
-        logging.debug("\nAfter tagstotext \n" + util.getinnerhtml(topnode))
+        #logging.debug("\nAfter tagstotext \n" + util.getinnerhtml(topnode))
 
         self.removetagswithfewwords(topnode)
         logging.debug("\nAfter remove fewword tags\n" + util.getinnerhtml(topnode))
@@ -115,7 +115,7 @@ class Formatter(object):
         """tags with fewer words than a threshold could be noise"""
         for item in topnode.iterdescendants():
             ws = self.texthandler.getstopwordscount(util.getinnertext(item, True))
-            if ws.stopwordcount < 3 :
+            if ws.stopwordcount < 2 :
                 try:
                     next(item.iterdescendants('object'))
                     next(item.iterdescendants('embed'))
@@ -127,7 +127,7 @@ class Formatter(object):
     def totext(self,topnode):
         buff = []
         for child in topnode.iterchildren():
-            content = util.getinnertext(child)
+            content = util.getinnertext(child,True)
             if content:
                 buff.append(content)
 

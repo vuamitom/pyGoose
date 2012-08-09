@@ -2,6 +2,7 @@ import logging
 from lxml import etree, html
 from text import TextHandler
 import util
+import math
 
 class ContentExtractor(object):
     """docstring for ContentExtractor"""
@@ -124,7 +125,7 @@ class ContentExtractor(object):
                 if (len(nodeswithtext) - i) <= bottomnode_for_negativescore:
                     booster = bottomnode_for_negativescore - (len(nodeswithtext) - i )
                     boostscore = -math.pow(booster, 2)
-                    negscore = math.abs(boostscore) + negativescore
+                    negscore = math.fabs(boostscore) + negativescore
                     if negscore > 40:
                         boostscore  = 5
             logging.debug("Location boost score %d on iteration %d id='%s' class='%s' tag='%s'" % (boostscore, i, node.getparent().get('id'), node.getparent().get('class'), node.getparent().tag ))
@@ -243,7 +244,8 @@ class ContentExtractor(object):
         node = self.addsiblings(topnode)
         for child in node.iterchildren():
             if child.tag != 'p':
-                if self.ishighlinkdensity(child) or self.istablenopara(child) or self.isthresholdmet(child):
+                if self.ishighlinkdensity(child) or self.istablenopara(child) or not self.isthresholdmet(child):
+                    logging.info("Removing node tag %s with text : %s " % (child.tag, util.getouterhtml(child)))
                     node.remove(child)
         return node
 
@@ -296,29 +298,31 @@ class ContentExtractor(object):
             parnode.text = None
 
     def getsiblingcontent(self, currentsibling, basescore):
-        if currentsibling.tag == 'p' and len(util.getinnertext(currentsibling)) > 0:
-            return util.getouterhtml(currentsibling)
-        else:
-            alltext = [] 
-            for para in currentsibling.iterdescendants('p'):#self.xparas(currentsibling):
-                text = util.getinnertext(para)
-                if text and len(text) > 0 :
-                    ws = self.texthandler.getstopwordscount(text)
-                    parascore = ws.stopwordcount
-                    if basescore * 0.30 < parascore:
-                        alltext.append("<p>" + text + "</p>")
+        if currentsibling.tag == 'p':
+            siblingtext = util.getinnertext(currentsibling, True)
+            if siblingtext is not None and len(util.getinnertext(currentsibling)) > 0:
+                return util.getouterhtml(currentsibling)
+        alltext = [] 
+        for para in currentsibling.iterdescendants('p'):#self.xparas(currentsibling):
+            text = util.getinnertext(para)
+            if text and len(text) > 0 :
+                ws = self.texthandler.getstopwordscount(text)
+                parascore = ws.stopwordcount
+                if basescore * 0.30 < parascore:
+                    alltext.append("<p>" + text + "</p>")
 
-            if len(alltext) > 0:
-                return " ".join(alltext)
-            else:
-                return None
+        if len(alltext) > 0:
+            return " ".join(alltext)
+        else:
+            return None
 
     def istablenopara(self, node):
         for subpara in node.iterdescendants('p'):
-            if len(util.getinnertext(subpara,True)) < 25:
+            paratext = util.getinnertext(subpara,True) 
+            if paratext is None or len(paratext) < 25:
                 parent = subpara.getparent()
                 if parent:
-                    logging.debug("removing node %" % subpara.tag)
+                    logging.debug("removing node %s" % subpara.tag)
                     parent.remove(subpara)
 
         #subparas = self.xparas(node)

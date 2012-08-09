@@ -71,14 +71,14 @@ class Crawler(object):
             if topnode is not None:
                 article.topnode = topnode
                 #extract video and images
-                logging.debug("TOPNODE " + getouterhtml(topnode))
+                logging.info("TOPNODE " + getouterhtml(topnode))
                 article.topnode = extractor.postextractionclean(topnode)
                 logging.debug("POST EXTRACT \n" + getouterhtml(topnode))
                 formatter = self.get_formatter()
                 article.cleanedtext = formatter.getformattedtext(article.topnode)
                 logging.debug(article.cleanedtext)
             else:
-                logging.debug("NO ARTICLE FOUND")
+                logging.info("NO ARTICLE FOUND")
             return article
         else :
             logging.info("Document at " + crawlcandidate.url + " is empty")

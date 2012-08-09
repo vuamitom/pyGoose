@@ -16,7 +16,7 @@ class DocumentCleaner(object):
         self.config = config
         self.xem = etree.XPath("//em")
         self.xstyle = etree.XPath("//style")
-        self.ximg = etree.XPath("//img")
+        #self.ximg = etree.XPath("//img")
         self.xscript = etree.XPath("//script")
         self.xpara_span = etree.XPath("//p/span")
         self.xdropcap = etree.XPath("//span[contains(@class,'dropcap') or contains(@class,'drop-cap')]")
@@ -36,7 +36,7 @@ class DocumentCleaner(object):
         self.rm_para_spantags(doc)
         self.clean_badtags(doc)
         self.tagstoparagraph(doc)
-        logging.info(etree.tostring(doc, pretty_print=True).decode('utf-8'))
+        #logging.info(etree.tostring(doc, pretty_print=True).decode('utf-8'))
 
     def _replacewithpara(self, node):
         """replace an element with para <p> """
@@ -54,11 +54,15 @@ class DocumentCleaner(object):
     def cleanem(self, doc):
         emlist = self.xem(doc)
         for node in emlist:
-            images = self.ximg(node) 
-            if(len(images) == 0):
+            #images = self.ximg(node) 
+            #if(len(images) == 0):
+            #    util.replacewithtext(node)
+            try:
+                next(node.iterdescendants('img'))
+            except StopIteration:
                 util.replacewithtext(node)
 
-        logging.info(str(len(emlist)) + " EM tags modified")
+        logging.debug(str(len(emlist)) + " EM tags modified")
         return doc
     
         
