@@ -38,24 +38,6 @@ class DocumentCleaner(object):
         self.tagstoparagraph(doc)
         logging.info(etree.tostring(doc, pretty_print=True).decode('utf-8'))
 
-
-    def _replacewithtext(self, node):
-        """replace an element with its text """
-        parent = node.getparent()
-        #parent.remove(node)
-        nodetext = "%s %s" % ( node.text, node.tail )
-        nodetext = nodetext.strip()
-        logging.info("replace " + node.tag + " with text " + nodetext)
-
-        try:
-            prevsib = next(node.itersiblings(preceding=True))
-            prevsib.tail = "%s %s" % (prevsib.tail, nodetext) 
-            prevsib.tail = prevsib.tail.strip()
-        except StopIteration:
-            parent.text = ("%s %s" % ( parent.text, nodetext )).strip()
-
-        parent.remove(node)
-
     def _replacewithpara(self, node):
         """replace an element with para <p> """
         parent = node.getparent()
@@ -74,7 +56,7 @@ class DocumentCleaner(object):
         for node in emlist:
             images = self.ximg(node) 
             if(len(images) == 0):
-                self._replacewithtext(node)
+                util.replacewithtext(node)
 
         logging.info(str(len(emlist)) + " EM tags modified")
         return doc
@@ -101,7 +83,7 @@ class DocumentCleaner(object):
         spans = self.xpara_span(doc) 
         for span in spans:
             #replace span with text 
-            self._replacewithtext(span)
+            util.replacewithtext(span)
 
         return doc
 
@@ -111,7 +93,7 @@ class DocumentCleaner(object):
         items = self.xdropcap(doc)
         for item in items:
             #replace 
-            self._replacewithtext(item)
+            util.replacewithtext(item)
         return doc
 
     def clean_badtags(self, doc):

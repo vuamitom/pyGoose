@@ -1,6 +1,7 @@
 import regex
 from structure import  Singleton
 import logging
+import util
 
 class TextHandler(object):
     """docstring for StopWords"""
@@ -27,7 +28,7 @@ class TextHandler(object):
         
     def getstopwordscount(self, content):
         ws = WordStat()
-        if not content:
+        if content is None:
             return ws
         strippedinput = self.removepunctuation(content) 
         candidate = self.splittext(strippedinput)
@@ -64,4 +65,75 @@ class StopWordSource(object):
                 self.swbuffer.append(l.strip())
             logging.info("Source contains %d stop words " % len(self.swbuffer))
         return self.swbuffer
+
+class Formatter(object):
+    """ format resulting article text"""
+    def __init__(self,config):
+        self.texthandler = TextHandler()
+        self.config = config
+
+    def getformattedtext(self, topnode):
+        """remove all unnecessary elements"""
+        logging.debug("\nINITIAL \n" + util.getinnerhtml(topnode))
+        self.remove_negscorenodes(topnode)
+        logging.debug("After remove neg score nodes \n" + util.getinnerhtml(topnode))
+        self.linkstotext(topnode)
+        logging.debug("\nAfter linkstotext \n" + util.getinnerhtml(topnode))
+        self.tagstotext(topnode)
+        logging.debug("\nAfter tagstotext \n" + util.getinnerhtml(topnode))
+
+        self.removetagswithfewwords(topnode)
+        logging.debug("\nAfter remove fewword tags\n" + util.getinnerhtml(topnode))
+        return self.totext(topnode)
+
+    def remove_negscorenodes(self,topnode):
+        scorednodes = topnode.cssselect("*[score]")
+        for item in scorednodes:
+            score = item.get('score')
+            score = float(score) if score else 0
+            if score < 1:
+                item.getparent().remove(item)
+
+    def linkstotext(self,topnode):
+        """ clean and convert nodes that should be considered text"""
+        for link in topnode.iterdescendants('a'):
+            hasimg = link.iterdescendants('img')
+            try:
+                next(hasimg)
+            except StopIteration:
+                #replace with text
+                util.replacewithtext(link)
+
+    def tagstotext(self,topnode):
+        """replace common non-blk with just text <b> <i> <strong>. Except <a> tag which is considered in linkstotext"""
+        for tag in self.config.nonblktags:
+            if tag != "a":
+                for item in topnode.iterdescendants(tag):
+                    util.replacewithtext(item)
+
+    def removetagswithfewwords(self, topnode):
+        """tags with fewer words than a threshold could be noise"""
+        for item in topnode.iterdescendants():
+            ws = self.texthandler.getstopwordscount(util.getinnertext(item, True))
+            if ws.stopwordcount < 3 :
+                try:
+                    next(item.iterdescendants('object'))
+                    next(item.iterdescendants('embed'))
+                except StopIteration:
+                    #remove node with there is no <object> <embed> tags
+                    logging.debug("remove fewwordpara %s: %s "%(item.tag, item.text))
+                    item.getparent().remove(item) 
+
+    def totext(self,topnode):
+        buff = []
+        for child in topnode.iterchildren():
+            content = util.getinnertext(child)
+            if content:
+                buff.append(content)
+
+        if len(buff) > 0:
+            return "\n\n".join(buff)
+        else:
+            return None
+
 

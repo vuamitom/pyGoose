@@ -2,6 +2,26 @@ import logging
 import re
 import extractor
 from lxml import etree
+import text
+import cleaner
+
+def replacewithtext(node):
+    """replace an element with its text """
+    parent = node.getparent()
+    #parent.remove(node)
+    nodetext = node.text
+    if node.tail is not None:
+        nodetext = nodetext + node.tail if nodetext else node.tail
+    #nodetext = nodetext.strip()
+    if nodetext is not None:
+        logging.info("replace " + node.tag + " with text " + nodetext)
+        prevsib = node.getprevious()#next(node.itersiblings(preceding=True))
+        if prevsib is not None:
+            prevsib.tail = prevsib.tail + nodetext if prevsib.tail else nodetext
+        else:
+            #prevsib.tail = prevsib.tail.strip()
+            parent.text = parent.text + nodetext if parent.text is not None else nodetext
+    parent.remove(node)
 
 def inspectgroup(elegroup):
     """ utility to print out a group of element nodes"""
@@ -61,9 +81,12 @@ class Configuration(object):
         # for other operations rather than the tool itself
         self.pubdateextractor = extractor.PublishDateExtractor
         self.contentextractor = extractor.ContentExtractor
+        self.doccleaner = cleaner.DocumentCleaner
         # set of tags that can be inside a paragarah, to decorate text, link ...
         # these tags should be considered part of a bigger paragraph
-        self.nonblktags = ["a","b","i"]
+        self.nonblktags = ["a","b","i","strong"]
+        # formatter to clean up text after extraction
+        self.formatter = text.Formatter
 
 from urllib.request import urlopen, Request
 from exception import NotFoundException

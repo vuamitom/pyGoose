@@ -110,7 +110,7 @@ class ContentExtractor(object):
                 if(wordstats.stopwordcount > 2 and not linkdense ):
                     nodeswithtext.append(node)
 
-        logging.info("To inspect %d nodes with text " % len(nodeswithtext))
+        logging.debug("To inspect %d nodes with text " % len(nodeswithtext))
         negativescore = 0
         bottomnode_for_negativescore = len(nodeswithtext) * 0.25
         for node in nodeswithtext:
@@ -127,8 +127,7 @@ class ContentExtractor(object):
                     negscore = math.abs(boostscore) + negativescore
                     if negscore > 40:
                         boostscore  = 5
-            logging.debug("==========\n")
-            logging.info("Location boost score %d on iteration %d id='%s' class='%s' tag='%s'" % (boostscore, i, node.getparent().get('id'), node.getparent().get('class'), node.getparent().tag ))
+            logging.debug("Location boost score %d on iteration %d id='%s' class='%s' tag='%s'" % (boostscore, i, node.getparent().get('id'), node.getparent().get('class'), node.getparent().tag ))
             
             nodetext = util.getinnertext(node) 
             logging.debug(nodetext)
@@ -158,7 +157,7 @@ class ContentExtractor(object):
         topnodescore = 0
         topnode = None
         for node in parentnodes:
-            logging.info("Parent Node: score=%s nodeCount=%s id=%s class=%s tag=%s" % (self._score(node),self._nodecount(node),node.get('id'),node.get('class'), node.tag))
+            logging.debug("Parent Node: score=%s nodeCount=%s id=%s class=%s tag=%s" % (self._score(node),self._nodecount(node),node.get('id'),node.get('class'), node.tag))
             score = self._score(node)
             if score > topnodescore:
                 topnode = node
@@ -166,7 +165,6 @@ class ContentExtractor(object):
 
             if topnode is None: 
                 topnode = node
-        
         return topnode
 
 
@@ -214,7 +212,7 @@ class ContentExtractor(object):
         linkdivisor = len(linkwords)/len(words)
         score = linkdivisor * len(linkbuffer)
         
-        logging.info("Link density score is %f for node %s"%(score, self._getshorttext(node)))
+        logging.debug("Link density score is %f for node %s"%(score, self._getshorttext(node)))
         return score > 1
 
     def _getshorttext(self,node):
@@ -228,13 +226,13 @@ class ContentExtractor(object):
         for sib in node.itersiblings(preceding=True):
             if(sib.tag == 'p'): 
                 if stepsaway >= maxstepsaway:
-                    logging.info("Next paragraph is too farway, not boost")
+                    logging.debug("Next paragraph is too farway, not boost")
                     return False
                 paratext = util.getinnertext(sib) 
                 if paratext != None:
                     ws = self.texthandler.getstopwordscount(paratext)
                     if ws.stopwordcount > minstopword:
-                        logging.info("Boosting this node")
+                        logging.debug("Boosting this node")
                         return True
                 stepsaway += 1
 
@@ -244,8 +242,8 @@ class ContentExtractor(object):
         """remove any divs that looks like non-content, link clusters"""
         node = self.addsiblings(topnode)
         for child in node.iterchildren():
-            if child.tag == 'p':
-                if self.ishighlinkdensity(child) or self.istablenopara(child) or isthresholdmet(child):
+            if child.tag != 'p':
+                if self.ishighlinkdensity(child) or self.istablenopara(child) or self.isthresholdmet(child):
                     node.remove(child)
         return node
 
@@ -282,7 +280,6 @@ class ContentExtractor(object):
             paras = html.fragments_fromstring(content)
             for p in reversed(paras):
                 self._insertFirst(topnode, p)
-
         return topnode
 
     def _insertFirst(self, parnode, node):
@@ -321,6 +318,7 @@ class ContentExtractor(object):
             if len(util.getinnertext(subpara,True)) < 25:
                 parent = subpara.getparent()
                 if parent:
+                    logging.debug("removing node %" % subpara.tag)
                     parent.remove(subpara)
 
         #subparas = self.xparas(node)
@@ -329,6 +327,7 @@ class ContentExtractor(object):
             p = next(iterpar)
             return False
         except StopIteration:
+            logging.debug("YES")
             if node.tag != 'td':
                 return True
         
@@ -337,7 +336,7 @@ class ContentExtractor(object):
         topnodescore = self._score(topnode)
         curscore = self._score(node)
         threshold = topnodescore * 0.08
-
+        logging.debug("curscore = %f , threshold = %f "%(curscore, threshold))
         if curscore < threshold and node.tag != 'td':
             return False
         else:

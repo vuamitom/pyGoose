@@ -1,5 +1,5 @@
 from html.parser import HTMLParser
-from util import URLHelper, HTMLFetcher
+from util import URLHelper, HTMLFetcher, getouterhtml
 from cleaner import DocumentCleaner
 import logging
 
@@ -68,10 +68,17 @@ class Crawler(object):
             #get highest weighted nodes
             topnode = extractor.getbestnodes_bsdoncluster(article.doc)
             #print(type(title.ownerDocument))
-            if topnode:
+            if topnode is not None:
                 article.topnode = topnode
                 #extract video and images
+                logging.debug("TOPNODE " + getouterhtml(topnode))
                 article.topnode = extractor.postextractionclean(topnode)
+                logging.debug("POST EXTRACT \n" + getouterhtml(topnode))
+                formatter = self.get_formatter()
+                article.cleanedtext = formatter.getformattedtext(article.topnode)
+                logging.debug(article.cleanedtext)
+            else:
+                logging.debug("NO ARTICLE FOUND")
             return article
         else :
             logging.info("Document at " + crawlcandidate.url + " is empty")
@@ -143,7 +150,14 @@ class Crawler(object):
         return self.publishdatextr
 
     def get_doccleaner(self):
-        return  DocumentCleaner(self.config)
+        if not hasattr(self, 'cleaner'):
+            self.cleaner = self.config.doccleaner(self.config)
+        return self.cleaner 
+
+    def get_formatter(self):
+        if not hasattr(self, 'formatter'):
+            self.formatter = self.config.formatter(self.config)
+        return self.formatter
 
 
 
