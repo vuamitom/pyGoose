@@ -65,7 +65,9 @@ def getinnertext(node, includeChildren = False):
     return text
 
 class Configuration(object):
-    """docstring for Configuration"""
+    """hold settings for crawling process"""
+    (STOPWORD_BASED, WORDCOUNT_BASED) = (0,1)
+
     def __init__(self):
         super(Configuration, self).__init__()
         self.headers = { 
@@ -87,6 +89,7 @@ class Configuration(object):
         self.nonblktags = ["a","b","i","strong"]
         # formatter to clean up text after extraction
         self.formatter = text.Formatter
+        self.texthandler = text.TextHandler
 
 from urllib.request import urlopen, Request
 from exception import NotFoundException

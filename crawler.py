@@ -2,8 +2,9 @@ from html.parser import HTMLParser
 from util import URLHelper, HTMLFetcher, getouterhtml
 from cleaner import DocumentCleaner
 import logging
-
-
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.FileHandler('./log/crawl.log'))
 class Article(object):
     """docstring for Article"""
     def __init__(self):
@@ -32,6 +33,7 @@ class Crawler(object):
 
     
     def crawl(self, crawlcandidate):
+
         article = Article()
         # take input url, parse it
         urlhelper = URLHelper()
@@ -62,11 +64,13 @@ class Crawler(object):
             article.tags = extractor.extracttags(article.doc)
 
             #clean up the document
+            #logger.info(getouterhtml(article.doc))
             cleaner = self.get_doccleaner()
             cleaner.clean(article)
-           
+            #logger.info(getouterhtml(article.doc))
             #get highest weighted nodes
             topnode = extractor.getbestnodes_bsdoncluster(article.doc)
+
             #print(type(title.ownerDocument))
             if topnode is not None:
                 article.topnode = topnode
@@ -141,7 +145,7 @@ class Crawler(object):
 
     def get_extractor(self):
         if not hasattr(self,'contentextractor'):
-            self.contentextractor = self.config.contentextractor()
+            self.contentextractor = self.config.contentextractor(self.config)
         return self.contentextractor
 
     def get_publishdatextr(self):

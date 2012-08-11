@@ -6,20 +6,24 @@ import math
 
 class ContentExtractor(object):
     """docstring for ContentExtractor"""
-    def __init__(self):
+    def __init__(self, config):
         super(ContentExtractor, self).__init__()
         self.xtopnodetags = etree.XPath("//*[self::p or self::td or self::pre]") 
         #self.xlinks = etree.XPath("./a|./*/a")
-        self.texthandler = TextHandler()
+        self.config = config
+        self.texthandler = config.texthandler()
         #self.xparas = etree.XPath("./p|./*/p")
+        #self.config = config
         
     def gettitle(self, doc):
         #select title
         titleelems = doc.cssselect('title')
+        title = None
         if not titleelems or len(titleelems) == 0 : 
-            return None
-
-        title = titleelems[0].text
+            # try to get meta title
+            title = self.getmetacontent(doc, "meta[name=title]")
+        else:
+            title = titleelems[0].text
         if not title: return None
 
         #split title if it contains delim
@@ -104,11 +108,14 @@ class ContentExtractor(object):
         count = 0 
         i = 0 #iteration 
         for node in nodes:
+            #logging.debug("checking %s node id=%s class=%s "% (node.tag, node.get('id'), node.get('class')))
+            #logging.debug(util.getouterhtml(node))
+            #logging.debug("\n")
             nodetext = util.getinnertext(node)
             if nodetext!= None:
-                wordstats = self.texthandler.getstopwordscount(nodetext)
+                #wordstats = self.texthandler.getstopwordscount(nodetext)
                 linkdense = self.ishighlinkdensity(node)
-                if(wordstats.stopwordcount > 2 and not linkdense ):
+                if(self.getrelevancescore(nodetext) > self.getcutoffscore() and not linkdense ):
                     nodeswithtext.append(node)
 
         logging.debug("To inspect %d nodes with text " % len(nodeswithtext))
@@ -131,9 +138,10 @@ class ContentExtractor(object):
             logging.debug("Location boost score %d on iteration %d id='%s' class='%s' tag='%s'" % (boostscore, i, node.getparent().get('id'), node.getparent().get('class'), node.getparent().tag ))
             
             nodetext = util.getinnertext(node) 
-            logging.debug(nodetext)
-            ws = self.texthandler.getstopwordscount(nodetext)
-            upscore = ws.stopwordcount + boostscore
+            #logging.debug(nodetext)
+            #ws = self.texthandler.getstopwordscount(nodetext)
+            #upscore = ws.stopwordcount + boostscore
+            upscore = self.getrelevancescore(nodetext) + boostscore
             logging.debug("total upscore = %f " % upscore ) 
             parent = node.getparent()
             grandpar = node.getparent().getparent()
@@ -170,6 +178,7 @@ class ContentExtractor(object):
 
 
     def _score(self, node, addscore=None):
+        """get or add score to a node"""
         score = node.get('score')
         score = float(score) if score is not None else 0
         if addscore is not None:
@@ -178,6 +187,7 @@ class ContentExtractor(object):
         return score 
 
     def _nodecount(self, node, addcount=None):
+        """get or add childnode count to a parent node"""
         count = node.get('nodecount')
         count = int(count) if count is not None else 0
         if addcount is not None:
@@ -185,12 +195,15 @@ class ContentExtractor(object):
             node.set('nodecount', str(count))
         return count 
 
+    def getrelevancescore(self, textcontent):
+        return self.texthandler.gettextscore(textcontent)
+
+    def getcutoffscore(self):
+        """no of stopwords for a node to be non-trivial"""
+        return self.texthandler.getcutoff() 
+
 
     def getnodestocheck(self, doc):
-        #tocheck = []
-        #tocheck = tocheck +  doc.cssselect('p')
-        #tocheck = tocheck +   doc.cssselect('pre')
-        #tocheck = tocheck +  doc.cssselect('td')
         tocheck = self.xtopnodetags(doc)
         return tocheck
 
@@ -222,7 +235,7 @@ class ContentExtractor(object):
     def isboostable (self, node ):
         """ make sure that the node is a paragraph, and connected to other paragraph """
         stepsaway = 0 
-        minstopword = 5
+        minscoretoboost = self.texthandler.getminboostable()
         maxstepsaway = 3
         for sib in node.itersiblings(preceding=True):
             if(sib.tag == 'p'): 
@@ -231,8 +244,8 @@ class ContentExtractor(object):
                     return False
                 paratext = util.getinnertext(sib) 
                 if paratext != None:
-                    ws = self.texthandler.getstopwordscount(paratext)
-                    if ws.stopwordcount > minstopword:
+                    #ws = self.texthandler.getstopwordscount(paratext)
+                    if self.getrelevancescore(paratext) > minscoretoboost:
                         logging.debug("Boosting this node")
                         return True
                 stepsaway += 1
@@ -245,7 +258,7 @@ class ContentExtractor(object):
         for child in node.iterchildren():
             if child.tag != 'p':
                 if self.ishighlinkdensity(child) or self.istablenopara(child) or not self.isthresholdmet(child):
-                    logging.info("Removing node tag %s with text : %s " % (child.tag, util.getouterhtml(child)))
+                    #logging.info("Removing node tag %s with text : %s " % (child.tag, util.getouterhtml(child)))
                     node.remove(child)
         return node
 
@@ -257,11 +270,13 @@ class ContentExtractor(object):
         #nodestocheck = self.xparas(topnode)
         for node in topnode.iterdescendants('p'):
             nodetext = util.getinnertext(node)
-            ws = self.texthandler.getstopwordscount(nodetext)
-            linkdense = self.ishighlinkdensity(topnode)
-            if(ws.stopwordcount > 2 and not linkdense):
-                numparas += 1
-                scoreparas += ws.stopwordcount
+            #ws = self.texthandler.getstopwordscount(nodetext)
+            if nodetext:
+                relscore = self.getrelevancescore(nodetext)
+                linkdense = self.ishighlinkdensity(topnode)
+                if(relscore > self.getcutoffscore() and not linkdense):
+                    numparas += 1
+                    scoreparas += relscore#ws.stopwordcount
 
         if numparas > 0:
             base = scoreparas/ numparas
@@ -352,14 +367,48 @@ class StandardContentExtractor(ContentExtractor):
     """standard extension of ContentExtractor.
         Add no new features at the moment"""
 
+    def __init__(self, config):
+        super(StandardContentExtractor,self).__init__(config)
+
+class LengthbsdContentExtractor(ContentExtractor):
+    """Extract article using text length as scoring instead of stopword count"""
+
     def __init__(self):
-        super(StandardContentExtractor,self).__init__()
-        
+        super(LengthbsdContentExtractor,self).__init__()
+
+    def getcutoffscore(self):
+        return 25
+
+    def getrelevancescore(self,content):
+        return self.texthandler.getwordscount(content)
+
+    def isboostable(self, node):
+        """ make sure that the node is a paragraph, and connected to other paragraph """
+        stepsaway = 0 
+        minscoretoboost = 50
+        maxstepsaway = 3
+        for sib in node.itersiblings(preceding=True):
+            if(sib.tag == 'p'): 
+                if stepsaway >= maxstepsaway:
+                    logging.debug("Next paragraph is too farway, not boost")
+                    return False
+                paratext = util.getinnertext(sib) 
+                if paratext != None:
+                    #ws = self.texthandler.getstopwordscount(paratext)
+                    if self.getrelevancescore(paratext) > minscoretoboost:
+                        logging.debug("Boosting this node")
+                        return True
+                stepsaway += 1
+
+        return False
+
+
 
 class PublishDateExtractor(object):
     """docstring for PublishDateExtractor"""
     def __init__(self):
         super(PublishDateExtractor, self).__init__()
+
     
     #pending not yet implemented
     def extract(self, doc):

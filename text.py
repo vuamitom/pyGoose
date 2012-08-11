@@ -13,6 +13,9 @@ class TextHandler(object):
         self.swlist = StopWordSource.instance()
         self.tabnspaces = regex.compile(r"(\t|^\s+|\s+$|\s{2,})")
         self.linebreaks = regex.compile(r"\n")
+
+        self.cutoff = 2
+        self.minboostable = 5
         
     def removepunctuation(self,text):
         return self.punctuation.sub('',text)
@@ -43,6 +46,30 @@ class TextHandler(object):
         #logging.info("found %d stopwords in text " % ws.stopwordcount )
         return ws
 
+    def gettextscore(self,content):
+        return self.getstopwordscount(content)
+
+    def getcutoff(self):
+        return self.cutoff
+
+    def getminboostable(self):
+        return self.minboostable
+
+class LengthbsdTextHandler(TextHandler):
+
+    def __init__(self):
+        super(LengthbsdTextHandler,self).__init__()
+        self.cutoff = 25
+        self.minboostable = 50
+
+    def gettextscore(self, content):
+        return self.getwordscount(content)
+
+    def getwordscount(self,content):
+        strippedinput = self.removepunctuation(content) 
+        candidate = self.splittext(strippedinput)
+        return len(candidate)
+
 class WordStat(object):
     """status of a text"""
     def __init__(self):
@@ -69,8 +96,9 @@ class StopWordSource(object):
 class Formatter(object):
     """ format resulting article text"""
     def __init__(self,config):
-        self.texthandler = TextHandler()
+        #self.texthandler = TextHandler()
         self.config = config
+        self.texthandler = config.texthandler()
 
     def getformattedtext(self, topnode):
         """remove all unnecessary elements"""
@@ -83,7 +111,7 @@ class Formatter(object):
         #logging.debug("\nAfter tagstotext \n" + util.getinnerhtml(topnode))
 
         self.removetagswithfewwords(topnode)
-        logging.debug("\nAfter remove fewword tags\n" + util.getinnerhtml(topnode))
+        #logging.debug("\nAfter remove fewword tags\n" + util.getinnerhtml(topnode))
         return self.totext(topnode)
 
     def remove_negscorenodes(self,topnode):
@@ -114,8 +142,9 @@ class Formatter(object):
     def removetagswithfewwords(self, topnode):
         """tags with fewer words than a threshold could be noise"""
         for item in topnode.iterdescendants():
-            ws = self.texthandler.getstopwordscount(util.getinnertext(item, True))
-            if ws.stopwordcount < 2 :
+            #ws = self.texthandler.getstopwordscount(util.getinnertext(item, True))
+            itemtext = util.getinnertext(item, True)
+            if itemtext is not None and self.texthandler.gettextscore(itemtext) < self.texthandler.getcutoff():
                 try:
                     next(item.iterdescendants('object'))
                     next(item.iterdescendants('embed'))
@@ -137,3 +166,20 @@ class Formatter(object):
             return None
 
 
+class LengthbsdFormatter(Formatter):
+    """a Formatter that evaluate text using word counts"""
+    def __init__(self,config):
+        super(LengthbsdFormatter, self).__init__(config)
+
+    def removetagswithfewwords(self, topnode):
+        for item in topnode.iterdescendants():
+            itemtext = util.getinnertext(item, True)
+            wordcount = self.texthandler.getwordscount(util.getinnertext(item,True))
+            if wordcount < 25:
+                try:
+                    next(item.iterdescendants('object'))
+                    next(item.iterdescendants('embed'))
+                except StopIteration:
+                    item.getparent().remove(item)
+
+                

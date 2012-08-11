@@ -1,27 +1,29 @@
 #from util import HTMLFetcher, Configuration
 from crawler import Crawler, CrawlCandidate
-from extractor import StandardContentExtractor
-from util import HTMLFetcher, Configuration
+from extractor import StandardContentExtractor, LengthbsdContentExtractor
+from util import HTMLFetcher, Configuration, getouterhtml
 import logging
-from text import TextHandler
+from text import TextHandler, LengthbsdTextHandler
 logging.basicConfig(level=logging.DEBUG)
 def main():
-    url = 'http://localhost/projects/pyGoose/target.html'
+    #url = 'http://localhost/projects/pyGoose/target.html'
+    url = 'http://vietnamnet.vn/vn/van-hoa/84115/xoa-an-cam-bieu-dien-voi-trong-tan-anh-tho.html'
     #url = 'http://www.google.co.in'
     config = Configuration()
     #parsing config as param to crawlcandidate maynot be 
     config.contentextractor = StandardContentExtractor
+    #config.contentextractor = ContentExtractor
+    #config.formatter = LengthbsdFormatter
+    config.texthandler = LengthbsdTextHandler
     crawlcandidate = CrawlCandidate(config,url)
 
     crawler = Crawler(config)
     article = crawler.crawl(crawlcandidate)
-
+    logging.debug(getouterhtml(article.topnode))
     print (article.title)
-    print (article.rawDoc)
     #todo 
 
     #create artile - test article attributes
-    teststopwords()
 
 def teststopwords():
     fi = "testsubject.txt"

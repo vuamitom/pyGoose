@@ -104,18 +104,22 @@ class DocumentCleaner(object):
         """remove sidebar, block comments, reviews ... """
         noiselist = self.getnoisesource().getnoisyids()
         noisyIds = self.cssselect(doc, "id", noiselist)
-        logging.info(str(len(noisyIds)) + " noisy ids removed ")
+        logging.info("======================================================\n")
+        #logging.info(str(len(noisyIds)) + " noisy ids removed ")
         for ele in noisyIds:
+            logging.debug("removing node %s id=%s class=%s "%(ele.tag, ele.get('id'), ele.get('class')))
             ele.getparent().remove(ele)
 
         noisyclasses = self.cssselect(doc, "class", noiselist)
         logging.info(str(len(noisyclasses)) + " noisy classes removed ")
         for ele in noisyclasses: 
+            logging.debug("removing node %s id=%s class=%s "%(ele.tag, ele.get('id'), ele.get('class')))
             ele.getparent().remove(ele)
 
         noisynames = self.cssselect(doc, "name", noiselist)
         logging.info(str(len(noisynames)) + " noisy names removed ")
         for ele in noisynames:
+            logging.debug("removing node %s id=%s class=%s "%(ele.tag, ele.get('id'), ele.get('class')))
             ele.getparent().remove(ele)
 
         #clean bad tags that match regex
@@ -123,11 +127,13 @@ class DocumentCleaner(object):
         noisypatterns = self.regexselect(doc, "id", pattern)
         logging.info(str(len(noisypatterns)) + " tag IDs match noisy patterns and removed ")
         for ele in noisypatterns:
+            logging.debug("removing node %s id=%s class=%s "%(ele.tag, ele.get('id'), ele.get('class')))
             ele.getparent().remove(ele)
 
         noisypatterns = self.regexselect(doc, "class", pattern)
         logging.info(str(len(noisypatterns)) + " tag Classes match noisy patterns and removed ")
         for ele in noisypatterns:
+            logging.debug("removing node %s id=%s class=%s "%(ele.tag, ele.get('id'), ele.get('class')))
             ele.getparent().remove(ele)
         return doc
 
@@ -136,7 +142,7 @@ class DocumentCleaner(object):
            It flushes the replacehtml buffer when <p> <article> or <div> is met"""
         for selectedtag in self.xwantedtags(doc):
             blkelems = self.xblkelemtags(selectedtag)
-            logging.debug("processing tag=%s id=%s with %d block eles"%(selectedtag.tag, selectedtag.get('id'), len(blkelems)))
+            #logging.debug("processing tag=%s id=%s with %d block eles"%(selectedtag.tag, selectedtag.get('id'), len(blkelems)))
             blkelems = self.xblkelemtags(selectedtag)
             if(len(blkelems) == 0):
                 #replace element with para
@@ -156,7 +162,7 @@ class DocumentCleaner(object):
         for node in ele.iterchildren():
             if node.tag in self.config.nonblktags:#== 'a' or node.tag == 'b' or node.tag == 'i':
                 replacehtml = "%s %s" % (replacehtml,util.getouterhtml(node)) if replacehtml is not None else util.getouterhtml(node)
-                logging.debug(util.getouterhtml(node))
+                #logging.debug(util.getouterhtml(node))
                 #remove node from document
                 ele.remove(node)
             
@@ -205,12 +211,13 @@ class DocumentCleaner(object):
     
     def cssselect(self, ele, attr, value):
         """wrapper around selecting DOM. using XPath. Can switch to cssselect incase of more specific need such as ^=, $=, ~="""
-        terms = value.split("|")
-        func = lambda t : "contains(@" + attr + ",'" + t + "')" 
-        path = " or ".join(map(func, terms))
-        path = "//*[" + path + "]" 
-        filters = etree.XPath(path)
-        return filters(ele)
+        #terms = value.split("|")
+        #func = lambda t : "contains(@" + attr + ",'" + t + "')" 
+        #path = " or ".join(map(func, terms))
+        #path = "//*[" + path + "]" 
+        #filters = etree.XPath(path)
+        #return filters(ele)
+        return self.regexselect(ele, attr, value )
 
 
 
@@ -220,7 +227,7 @@ from structure import Singleton
 class NoisyKeyProvider:
     """singleton class to provide list of noisy kewords""" 
     def __init__(self):
-        self.noisykeywords = "side|combx|retweet|mediaarticlerelated|menucontainer|navbar|comment|PopularQuestions|\
+        self.noisykeywords = "\\bside\\b|combx|retweet|mediaarticlerelated|menucontainer|navbar|comment|PopularQuestions|\
         contact|foot|footer|Footer|footnote|cnn_strycaptiontxt|links|meta|scroll|shoutbox|sponsor\
         |tags|socialnetworking|socialNetworking|cnnStryHghLght|cnn_stryspcvbx|inset|pagetools|post-attributes|welcome_form|contentTools2|the_answers|remember-tool-tip\
         |communitypromo|runaroundLeft|subscribe|vcard|articleheadings|date|print|popup|author-dropdown|tools|socialtools|byline|konafilter|KonaFilter|breadcrumbs|fn|wp-caption-text"
