@@ -156,7 +156,9 @@ class Formatter(object):
     def totext(self,topnode):
         buff = []
         for child in topnode.iterchildren():
+            logging.debug("\n ==== tag = %s id = %s class = %s " % (child.tag, child.get('id'), child.get('class')))
             content = util.getinnertext(child,True)
+            logging.debug(content)
             if content:
                 buff.append(content)
 

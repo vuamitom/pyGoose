@@ -64,10 +64,8 @@ class Crawler(object):
             article.tags = extractor.extracttags(article.doc)
 
             #clean up the document
-            #logger.info(getouterhtml(article.doc))
             cleaner = self.get_doccleaner()
             cleaner.clean(article)
-            #logger.info(getouterhtml(article.doc))
             #get highest weighted nodes
             topnode = extractor.getbestnodes_bsdoncluster(article.doc)
 

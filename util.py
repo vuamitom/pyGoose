@@ -9,10 +9,11 @@ def replacewithtext(node):
     """replace an element with its text """
     parent = node.getparent()
     #parent.remove(node)
-    nodetext = node.text
-    if node.tail is not None:
-        nodetext = nodetext + node.tail if nodetext else node.tail
+    #nodetext  = node.text
+    #if node.tail is not None:
+    #    nodetext = nodetext + node.tail if nodetext else node.tail
     #nodetext = nodetext.strip()
+    nodetext = getinnertext(node, True)
     if nodetext is not None:
         logging.info("replace " + node.tag + " with text " + nodetext)
         prevsib = node.getprevious()#next(node.itersiblings(preceding=True))
@@ -53,14 +54,16 @@ def getinnertext(node, includeChildren = False):
     text = node.text 
     for child in node.iterchildren():
         if includeChildren:
-            if child.text:
-                text = child.text if not text else text + child.text
+            #if child.text:
+            childtext = getinnertext(child, True)
+            if childtext:
+                text = childtext if not text else text + childtext
         else:
-            # only add for non-blk tag like <a>, <b>, <i>...
+            # only add for non-blk tag like <a>, <b>, <i>, <strong>
             config = Configuration()
             if child.tag in config.nonblktags and child.text:
                 text = child.text if not text else text + child.text
-        if child.tail:
+        if child.tail is not None:
             text = child.tail if not text else text + child.tail
     return text
 

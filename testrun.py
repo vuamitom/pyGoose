@@ -1,7 +1,7 @@
 #from util import HTMLFetcher, Configuration
 from crawler import Crawler, CrawlCandidate
 from extractor import StandardContentExtractor, LengthbsdContentExtractor
-from util import HTMLFetcher, Configuration, getouterhtml
+from util import HTMLFetcher, Configuration, getouterhtml, getinnertext
 import logging
 from text import TextHandler, LengthbsdTextHandler
 logging.basicConfig(level=logging.DEBUG)
@@ -19,7 +19,8 @@ def main():
 
     crawler = Crawler(config)
     article = crawler.crawl(crawlcandidate)
-    logging.debug(getouterhtml(article.topnode))
+    logging.debug(getinnertext(article.topnode, True))
+    #logging.debug(getouterhtml(article.topnode))
     print (article.title)
     #todo 
 
