@@ -1,3 +1,10 @@
 Description:
 
 A Python of Jim Plush's Goose project
+
+- extract main article from a web page
+
+Todo:
+
+- extract video
+- extract image
