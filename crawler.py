@@ -2,9 +2,9 @@ from html.parser import HTMLParser
 from util import URLHelper, HTMLFetcher, getouterhtml
 from cleaner import DocumentCleaner
 import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.FileHandler('./log/crawl.log'))
+#logger = logging.getLogger(__name__)
+#logger.setLevel(logging.DEBUG)
+#logger.addHandler(logging.FileHandler('./log/crawl.log'))
 class Article(object):
     """docstring for Article"""
     def __init__(self):
@@ -94,22 +94,25 @@ class Crawler(object):
             return fetcher.getHTML(self.config, parsecandidate)
 
 
-    def get_document(self, parsecandidate, rawHTMl):
-        #print(type(rawHTMl))
-        if not isinstance(rawHTMl,str):
+    def get_document(self, parsecandidate, rawHTML):
+        #print(type(rawHTML))
+        if not isinstance(rawHTML,str):
             #decode bytes to HTML string
+            decodedHTML = None
             try:            
                 #detect coding with BeautifulSoup 4
                 from bs4 import UnicodeDammit
-                ud = UnicodeDammit(rawHTMl,[],None, True)
+                ud = UnicodeDammit(rawHTML,[],None, True)
                 decodedHTML = ud.unicode_markup
             except ImportError as e:
                 logging.warn('BeautifulSoup 4 mightnot be installed. Use default decode')
-                logging.error(str(e))
+                logging.warn(str(e))
 
             if not decodedHTML: 
                 #try fallback to str encode
-                if not parsecandidate.charset: parsecandidate.charset='utf-8'
+                if not parsecandidate.charset: 
+                    parsecandidate.charset='utf-8'
+                    #print(parsecandidate.charset)
                 decodedHTML = rawHTML.decode(parsecandidate.charset)
 
             #create DOM document    

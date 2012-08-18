@@ -119,8 +119,10 @@ class HTMLFetcher(object):
                 raise NotFoundException(url)
             #find character encode
             contenttype = response.getheader('content-type')
-            if contenttype and contenttype.find('charset') >=0 :
-                parsecandidate.charset = contenttype[contenttype.find('charset'):]
+            csidx = contenttype.find('charset')
+            if contenttype and csidx :
+                parsecandidate.charset = contenttype[csidx + len('charset='):]
+                parsecandidate.charset = parsecandidate.charset.strip()
 
             return response.readall()
         except NotFoundException as e:
