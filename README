@@ -1,7 +1,9 @@
 Description:
 
-A Python of Jim Plush's Goose project
+Article extraction tool 
 
+- A Python of Jim Plush's Goose project
+https://github.com/jiminoc/goose
 - extract main article from a web page
 
 Todo:
